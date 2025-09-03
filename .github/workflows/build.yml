@@ -1,0 +1,143 @@
+name: Build And Release Rustlet
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches:
+      - '**'        # all branches
+    tags:
+      - 'v*'        # version tags starting with v
+  pull_request:
+    branches:
+      - '**'        # all branches
+
+env:
+  GH_PROJECT_NAME: rustlet
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build binary
+        run: cargo build --release
+
+      - name: Install Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install podman
+
+      - name: Set image tag
+        id: imagetag
+        run: |
+          if [ "${GITHUB_REF}" == "refs/heads/main" ]; then
+            echo "IMAGE_TAG=latest" >> $GITHUB_ENV
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG_NAME=${GITHUB_REF#refs/tags/}
+            echo "IMAGE_TAG=${TAG_NAME}" >> $GITHUB_ENV
+          else
+            SHORT_SHA=$(echo ${GITHUB_SHA} | cut -c1-7)
+            echo "IMAGE_TAG=${SHORT_SHA}" >> $GITHUB_ENV
+          fi
+
+      - name: Build container image
+        run: |
+          podman build -t $GH_PROJECT_NAME:$IMAGE_TAG .
+
+      - name: Push image
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+        run: |
+          echo "${{ secrets.CR_PASSWORD }}" | podman login -u "${{ secrets.CR_USERNAME }}" --password-stdin ${{ vars.CR_REGISTRY }}
+          podman tag $GH_PROJECT_NAME:$IMAGE_TAG ${{ vars.CR_REGISTRY }}/$GH_PROJECT_NAME:$IMAGE_TAG
+          podman push ${{ vars.CR_REGISTRY }}/$GH_PROJECT_NAME:$IMAGE_TAG
+
+  release:
+    needs: build
+    name: release-${{ matrix.type }}
+    runs-on: ${{ matrix.os }}
+    if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            type: linux
+          - os: macos-latest
+            type: darwin
+          - os: windows-latest
+            type: windows
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Archive binary
+        shell: bash
+        run: |
+          mkdir artifacts
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            mv target/release/$GH_PROJECT_NAME.exe artifacts/$GH_PROJECT_NAME-${{ matrix.type }}.exe
+          else
+            mv target/release/$GH_PROJECT_NAME artifacts/$GH_PROJECT_NAME-${{ matrix.type }}
+          fi
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-binaries
+          path: artifacts/*
+
+  github-release:
+    needs: release
+    name: gh-release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Collect commit messages
+        id: commits
+        run: |
+          COMMITMESSAGES="$(git log --pretty=format:'✨ %s')"
+          echo "COMMITS=$COMMITMESSAGES" >> $GITHUB_ENV
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ github.ref_name }}
+          body: |
+            # Rustlet 🦀
+            
+            ## 🚀 What's new in ${{ github.ref_name }}
+            ${{ env.COMMITS }}
+            
+            ## 📦 Get OCI image
+            
+            To pull generated image:
+            
+            ```bash
+            podman pull ${{ vars.CR_REGISTRY }}/${{ env.GH_PROJECT_NAME }}:${{ github.ref_name }}
+            docker pull ${{ vars.CR_REGISTRY }}/${{ env.GH_PROJECT_NAME }}:${{ github.ref_name }}
+            ```
+          files: release-artifacts/**/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
