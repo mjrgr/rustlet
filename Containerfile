@@ -20,13 +20,15 @@ RUN cargo install --target x86_64-unknown-linux-musl --path .
 
 FROM scratch
 
-LABEL org.opencontainers.image.base.name="scratch" \
-      org.opencontainers.image.ref.name="rustlet" \
-      org.opencontainers.image.authors="Mehdi Jr-Gr" \
-      org.opencontainers.image.title="Rustlet" \
-      org.opencontainers.image.description="Lightweight init container tool for Kubernetes checks" \
-      org.opencontainers.image.vendor="Mehdi Jr-Gr" \
-      org.opencontainers.image.licenses="Apache-2.0"
+
+LABEL org.opencontainers.image.base.name="scratch"
+LABEL org.opencontainers.image.description="Lightweight init container tool for Kubernetes checks"
+LABEL org.opencontainers.image.ref.name="rustlet"
+LABEL org.opencontainers.image.authors="Mehdi Jr-Gr"
+LABEL org.opencontainers.image.title="Rustlet"
+LABEL org.opencontainers.image.vendor="Mehdi Jr-Gr"
+LABEL org.opencontainers.image.source="https://github.com/mjrgr/rustlet"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 USER 1000:1000
 

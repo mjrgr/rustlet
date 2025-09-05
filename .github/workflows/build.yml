@@ -1,7 +1,7 @@
 name: Build Rustlet
 
 permissions:
-  contents: read
+  contents: write
   security-events: write
   actions: read
 
@@ -113,5 +113,14 @@ jobs:
       - name: Push image
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         run: |
+          # Push to Docker Registry
+          echo "Pushing image $IMAGE"
           echo "${{ secrets.CR_PASSWORD }}" | podman login -u "${{ secrets.CR_USERNAME }}" --password-stdin ${{ vars.CR_REGISTRY }}
           podman push $IMAGE
+          
+          # Push to GitHub Container Registry
+          GHCR_IMAGE=ghcr.io/${{ github.repository }}:${IMAGE_TAG}
+          echo "Pushing image $GHCR_IMAGE"
+          podman tag $IMAGE $GHCR_IMAGE
+          echo "${{ secrets.GHP_TOKEN }}" | podman login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+          podman push $GHCR_IMAGE
