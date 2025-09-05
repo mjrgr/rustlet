@@ -20,7 +20,7 @@ COPY src ./src
 RUN cargo install --target x86_64-unknown-linux-musl --path .
 
 
-FROM scratch
+FROM ubuntu
 
 LABEL org.opencontainers.image.base.name="scratch" \
       org.opencontainers.image.ref.name="rustlet" \

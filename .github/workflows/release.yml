@@ -2,6 +2,8 @@ name: Release Rustlet
 
 permissions:
   contents: write
+  security-events: read
+  actions: read
 
 on:
   push:
