@@ -25,9 +25,8 @@ LABEL org.opencontainers.image.base.name="scratch" \
       org.opencontainers.image.authors="Mehdi Jr-Gr" \
       org.opencontainers.image.title="Rustlet" \
       org.opencontainers.image.description="Lightweight init container tool for Kubernetes checks" \
-      org.opencontainers.image.version="1.0.0" \
-      org.opencontainers.image.vendor="MJG" \
-      org.opencontainers.image.licenses="MIT OR Apache-2.0"
+      org.opencontainers.image.vendor="Mehdi Jr-Gr" \
+      org.opencontainers.image.licenses="Apache-2.0"
 
 USER 1000:1000
 

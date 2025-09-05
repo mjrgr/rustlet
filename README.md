@@ -1,5 +1,14 @@
 # Rustlet 🦀
 
+
+![Build Status](https://github.com/mjrgr/rustlet/actions/workflows/build.yml/badge.svg?branch=main)
+![Tests](https://img.shields.io/github/actions/workflow/status/mjrgr/rustlet/build.yml?label=tests&branch=main)
+![Latest Release](https://img.shields.io/github/v/release/mjrgr/rustlet)
+![Docker Pulls](https://img.shields.io/docker/pulls/mehdijrgr/rustlet?logo=docker)
+![Docker Image Size](https://img.shields.io/docker/image-size/mehdijrgr/rustlet/latest?label=image%20size)
+![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20windows-lightgrey)
+![License](https://img.shields.io/github/license/mjrgr/rustlet)
+
 Rustlet is a lightweight, blazing-fast **init container** tool built in [Rust](https://www.rust-lang.org/).  
 It helps Kubernetes pods prepare their runtime environment by running initialization tasks before the main containers start.
 
@@ -20,7 +29,7 @@ Rustlet is ideal for:
 Clone the repository and build with Cargo:
 
 ```bash
-git clone https://github.com/your-username/rustlet.git
+git clone https://github.com/mjrgr/rustlet.git
 cd rustlet
 cargo build --release
 ```
@@ -32,7 +41,7 @@ The compiled binary will be available in `target/release/rustlet`.
 Clone the repository and build with Podman/Docker CLI:
 
 ```bash
-git clone https://github.com/your-username/rustlet.git
+git clone https://github.com/mjrgr/rustlet.git
 cd rustlet
 podman build . -t rustlet
 #docker build . -t rustlet
