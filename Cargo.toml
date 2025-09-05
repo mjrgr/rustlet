@@ -3,12 +3,26 @@ name = "rustlet"
 version = "1.0.0"
 authors = ["Mehdi JrGr"]
 edition = "2024"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "Lightweight init container tool for Kubernetes"
+license = "Apache-2.0"
+keywords = ["kubernetes", "init-container", "health-check"]
+categories = ["command-line-utilities"]
+repository = "https://github.com/mjrgr/rustlet"
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
-reqwest = { version ="0.12", features = ["blocking"] }
+reqwest = { version = "0.12", features = ["blocking"], default-features = false }
 log = "0.4"
 env_logger = "0.11"
 ctrlc = "3.4"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+opt-level = "z"
+
+[profile.dev]
+opt-level = 0
+debug = true

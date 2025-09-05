@@ -10,11 +10,13 @@ on:
 
 env:
   GH_PROJECT_NAME: rustlet
+  CARGO_TERM_COLOR: always
 
 jobs:
   build:
     uses: ./.github/workflows/build.yml
     secrets: inherit
+
   release:
     needs:
       - build
@@ -24,36 +26,65 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
             type: linux
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            type: linux-musl
           - os: macos-latest
-            type: darwin
+            target: x86_64-apple-darwin
+            type: darwin-amd64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            type: darwin-arm64
           - os: windows-latest
+            target: x86_64-pc-windows-msvc
             type: windows
+            ext: .exe
+
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Rust
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross-compilation dependencies
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
 
       - name: Build release binary
-        run: cargo build --release
+        run: cargo build --release --target ${{ matrix.target }}
 
       - name: Archive binary
         shell: bash
         run: |
-          mkdir artifacts
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            mv target/release/$GH_PROJECT_NAME.exe artifacts/$GH_PROJECT_NAME-${{ matrix.type }}.exe
+          mkdir -p artifacts
+          binary_name="${GH_PROJECT_NAME}${{ matrix.ext }}"
+          artifact_name="${GH_PROJECT_NAME}-${{ matrix.type }}${{ matrix.ext }}"
+          
+          if [ -f "target/${{ matrix.target }}/release/$binary_name" ]; then
+            cp "target/${{ matrix.target }}/release/$binary_name" "artifacts/$artifact_name"
+            # Calculer et stocker les checksums
+            cd artifacts
+            sha256sum "$artifact_name" > "$artifact_name.sha256"
           else
-            mv target/release/$GH_PROJECT_NAME artifacts/$GH_PROJECT_NAME-${{ matrix.type }}
+            echo "Binary not found at expected location"
+            exit 1
           fi
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-binaries
+          name: ${{ matrix.type }}-binaries
           path: artifacts/*
+          if-no-files-found: error
+
 
   github-release:
     needs: release
@@ -63,12 +94,21 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Collect commit messages
+      - name: Collect commit messages since last tag
         id: commits
         run: |
-          COMMITMESSAGES="$(git log --pretty=format:'✨ %s')"
-          echo "COMMITS=$COMMITMESSAGES" >> $GITHUB_ENV
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG" ]; then
+            COMMITS=$(git log --pretty=format:'☑️ %s' ${LAST_TAG}..HEAD)
+          else
+            COMMITS=$(git log --pretty=format:'☑️ %s')
+          fi
+          echo "COMMITS<<EOF" >> $GITHUB_ENV
+          echo "$COMMITS" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -85,15 +125,32 @@ jobs:
             ## 🚀 What's new in ${{ github.ref_name }}
             ${{ env.COMMITS }}
             
-            ## 📦 Get OCI image
+            ## 📦 Installation
+            
+            ### 📄Binaires
+
+            Download the binary corresponding to your platform from the assets below.
+            The `.sha256` files contain checksums to verify the integrity of the binaries.
+            
+            ```bash
+            sha256sum -c rustlet-[arch].sha256
+            ```            
+            
+            ### 🐳 Get OCI image
             
             To pull generated image:
             
             ```bash
+            # Podman
             podman pull ${{ vars.CR_REGISTRY }}/${{ env.GH_PROJECT_NAME }}:${{ github.ref_name }}
+            
+            # Docker
             docker pull ${{ vars.CR_REGISTRY }}/${{ env.GH_PROJECT_NAME }}:${{ github.ref_name }}
             ```
+
           files: release-artifacts/**/*
           generate_release_notes: true
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
