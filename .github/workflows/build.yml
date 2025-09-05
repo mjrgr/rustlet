@@ -52,7 +52,6 @@ jobs:
           cargo install cargo-audit
           cargo audit
 
-
   build:
     name: Build and Push
     runs-on: ubuntu-latest

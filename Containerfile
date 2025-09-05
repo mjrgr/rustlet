@@ -9,18 +9,16 @@ ENV OPENSSL_STATIC=1 \
     OPENSSL_DIR="/usr"
 
 WORKDIR /usr/src/
-RUN rustup target add x86_64-unknown-linux-musl
 
+RUN rustup target add x86_64-unknown-linux-musl
 RUN USER=root cargo new rustlet
 WORKDIR /usr/src/rustlet
-COPY Cargo.toml Cargo.lock ./
-RUN cargo build --release
 
+COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 RUN cargo install --target x86_64-unknown-linux-musl --path .
 
-
-FROM ubuntu
+FROM scratch
 
 LABEL org.opencontainers.image.base.name="scratch" \
       org.opencontainers.image.ref.name="rustlet" \
