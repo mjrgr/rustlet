@@ -1,0 +1,46 @@
+repositories:
+  - name: bitnami-charts
+    url: registry-1.docker.io/bitnamicharts
+    oci: true
+  - name: akhq
+    url: https://akhq.io
+
+helmDefaults:
+  wait: true
+  waitForJobs: true
+  timeout: {{ env "HF_TIMEOUT" | default 1200 }}
+  historyMax: 5
+  createNamespace: true
+
+releases:
+  - name: kafka
+    chart: bitnami-charts/kafka
+    namespace: {{ .Namespace }}
+    version: 32.4.3
+    labels:
+      type: kafka
+    values:
+      - controller:
+          replicaCount: 1
+
+  - name: akhq
+    chart: akhq/akhq
+    namespace: {{ .Namespace }}
+    version: 0.24.0
+    labels:
+      type: kafka
+    values:
+      - secrets:
+          akhq:
+            connections:
+              properties:
+                bootstrap.servers: "kafka:9092"
+        initContainers:
+          create-keystore:
+            image: "docker.io/mehdijrgr/rustlet:latest"
+#            image: "ghcr.io/mjrgr/rustlet:latest"
+            args:
+              - "--tcp"
+              - "kafka:9092"
+
+

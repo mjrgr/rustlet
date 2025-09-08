@@ -2,9 +2,8 @@ mod checkerror;
 
 use clap::{Arg, ArgMatches, Command};
 use log::{LevelFilter, debug, error, info, warn};
-use std::net::{SocketAddr, TcpStream};
+use std::net::{TcpStream, ToSocketAddrs};
 use std::process::exit;
-use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::sleep;
@@ -79,25 +78,46 @@ fn main() {
 }
 
 fn check_tcp_endpoint(addr: &str, timeout: Duration) -> Result<(), CheckError> {
-    let socket_addr =
-        SocketAddr::from_str(addr).map_err(|_| CheckError::InvalidUrl(addr.to_string()))?;
+    let clean_addr = addr.strip_prefix("tcp://").unwrap_or(addr);
 
+    let socket_addrs: Vec<_> = clean_addr
+        .to_socket_addrs()
+        .map_err(|e| CheckError::InvalidAddress(format!("{}: {}", addr, e)))?
+        .collect();
+
+    if socket_addrs.is_empty() {
+        return Err(CheckError::InvalidAddress(format!(
+            "No addresses resolved for: {}",
+            addr
+        )));
+    }
+
+    // Attempt to connect to the first resolved address
+    let socket_addr = socket_addrs[0];
     TcpStream::connect_timeout(&socket_addr, timeout)
         .map_err(|e| CheckError::ConnectionFailed(format!("{}: {}", addr, e)))?;
 
+    debug!(
+        "TCP connection successful to {} (resolved to {})",
+        addr, socket_addr
+    );
     Ok(())
 }
 
 fn check_http_endpoint(url: &str, timeout: Duration) -> Result<(), CheckError> {
+    debug!("Attempting HTTP check for: {}", url);
+
     let client = reqwest::blocking::Client::builder()
         .timeout(timeout)
         .build()
         .map_err(|e| CheckError::InvalidAddress(format!("Client creation failed: {}", e)))?;
 
-    let response = client
-        .get(url)
-        .send()
-        .map_err(|e| CheckError::RequestFailed(format!("{}: {}", url, e)))?;
+    let response = client.get(url).send().map_err(|e| {
+        error!("HTTP request error for {}: {}", url, e);
+        CheckError::RequestFailed(format!("{}: {}", url, e))
+    })?;
+
+    debug!("HTTP response status for {}: {}", url, response.status());
 
     if !response.status().is_success() {
         return Err(CheckError::RequestFailed(format!(

@@ -1,0 +1,57 @@
+repositories:
+  - name: bitnami-charts
+    url: registry-1.docker.io/bitnamicharts
+    oci: true
+  - name: bedag
+    url: https://bedag.github.io/helm-charts/
+
+helmDefaults:
+  wait: true
+  waitForJobs: true
+  timeout: {{ env "HF_TIMEOUT" | default 1200 }}
+  historyMax: 5
+  createNamespace: true
+
+releases:
+  - name: postgresql
+    chart: bitnami-charts/postgresql
+    namespace: {{ .Namespace }}
+    version: 16.7.27
+    labels:
+      type: postgresql
+
+  - name: raw
+    chart: bedag/raw
+    namespace: {{ .Namespace }}
+    version: 2.0.0
+    labels:
+      type: raw
+    values:
+      - resources:
+          - apiVersion: batch/v1
+            kind: Job
+            metadata:
+              name: my-job
+            spec:
+              ttlSecondsAfterFinished: 600
+              backoffLimit: 3
+              template:
+                spec:
+                  restartPolicy: OnFailure
+                  initContainers:
+                    - name: wait
+                      image: "docker.io/mehdijrgr/rustlet:latest"
+                      args:
+                        - "--tcp"
+                        - "tcp://postgresql:5432"
+                  containers:
+                    - name: alpine
+                      image: docker.io/alpine
+                      command:
+                        - sh
+                        - -c
+                        - |
+                          echo "PostgreSQL Database started successfully"
+                      tty: true
+
+

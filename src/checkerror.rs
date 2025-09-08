@@ -1,7 +1,6 @@
 #[derive(Debug)]
 pub enum CheckError {
     InvalidAddress(String),
-    InvalidUrl(String),
     ConnectionFailed(String),
     RequestFailed(String),
 }
@@ -10,7 +9,6 @@ impl std::fmt::Display for CheckError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CheckError::InvalidAddress(addr) => write!(f, "Invalid address: {}", addr),
-            CheckError::InvalidUrl(url) => write!(f, "Invalid URL: {}", url),
             CheckError::ConnectionFailed(msg) => write!(f, "Connection failed: {}", msg),
             CheckError::RequestFailed(msg) => write!(f, "Request failed: {}", msg),
         }
@@ -27,9 +25,6 @@ mod tests {
     fn test_error_display() {
         let error = CheckError::InvalidAddress("invalid".to_string());
         assert_eq!(error.to_string(), "Invalid address: invalid");
-
-        let error = CheckError::InvalidUrl("not-a-url".to_string());
-        assert_eq!(error.to_string(), "Invalid URL: not-a-url");
 
         let error = CheckError::ConnectionFailed("timeout".to_string());
         assert_eq!(error.to_string(), "Connection failed: timeout");
