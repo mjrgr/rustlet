@@ -51,6 +51,8 @@ The built image will be locally available as `rustlet:latest`.
 
 ## 🛠️ Usage
 
+![Demo](./demo/rustlet-complete-demo.gif)
+
 Add Rustlet as an init container in your Kubernetes Pod spec:
 
 ```yaml
